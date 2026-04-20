@@ -184,7 +184,7 @@
     #cam-sb.visible { transform: translateX(0); }
     .cam-sb-inner { padding:18px; display:flex; flex-direction:column; gap:14px; }
     .cam-video-box {
-      position:relative; width:100%; aspect-ratio: 4/3;
+      position:relative; width:100%; aspect-ratio: 16/9;
       border:1px solid var(--steel-3); border-radius:2px;
       overflow:hidden; background: var(--steel-0);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 18px rgba(0,0,0,0.7);
@@ -682,6 +682,13 @@ async function toggleCam() {
     video = document.getElementById('v');
     video.srcObject = camStream;
     await video.play();
+
+    // match canvas + box to real webcam aspect (so user looks proportional)
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    camCanvas.width = vw;
+    camCanvas.height = vh;
+    document.querySelector('.cam-video-box').style.aspectRatio = `${vw} / ${vh}`;
 
     if (!handsModel) {
       handsModel = new Hands({
