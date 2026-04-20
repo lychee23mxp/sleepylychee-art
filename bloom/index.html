@@ -503,6 +503,16 @@ function draw(ts) {
   const cA = rgbStr(lerpRGB(priRGB, secRGB, tMix));
   const cB = rgbStr(lerpRGB(secRGB, priRGB, tMix));
 
+  // ── fade trail: keep ~3 full rotations of stamps visible
+  const rps = Math.abs(P.rot);
+  if (rps > 0.001) {
+    const framesPer3Rot = (360 * 3) / rps;
+    const fadeA = 1 - Math.pow(0.035, 1 / framesPer3Rot);
+    const bgRGB = parseHex(P.bg);
+    ctx.fillStyle = `rgba(${bgRGB[0]},${bgRGB[1]},${bgRGB[2]},${fadeA})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
   // ── stamp (offset center so visible panels don't block flower)
   const cen = getCenter();
   ctx.save();
