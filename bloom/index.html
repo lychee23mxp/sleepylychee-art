@@ -720,27 +720,31 @@ async function processCam() {
 
 function onHandResults(results) {
   const cw = camCanvas.width, ch = camCanvas.height;
-  const vw = results.image.width || (video && video.videoWidth) || cw;
-  const vh = results.image.height || (video && video.videoHeight) || ch;
+  const vw = (video && video.videoWidth)  || results.image.width  || cw;
+  const vh = (video && video.videoHeight) || results.image.height || ch;
 
-  // cover-fit source rect (center-crop video into 4:3 canvas, no stretching)
+  // contain-fit (letterbox) — keeps full video visible, no stretching or cropping
   const sAR = vw / vh, dAR = cw / ch;
-  let sx = 0, sy = 0, sW = vw, sH = vh;
-  if (sAR > dAR) { sW = vh * dAR; sx = (vw - sW) / 2; }
-  else            { sH = vw / dAR; sy = (vh - sH) / 2; }
+  let dx = 0, dy = 0, dW = cw, dH = ch;
+  if (sAR > dAR) { dH = cw / sAR; dy = (ch - dH) / 2; }
+  else            { dW = ch * sAR; dx = (cw - dW) / 2; }
 
-  // mirrored cover draw
-  camCtx.save();
-  camCtx.scale(-1, 1);
-  camCtx.drawImage(results.image, sx, sy, sW, sH, -cw, 0, cw, ch);
-  camCtx.restore();
-  camCtx.fillStyle = 'rgba(0,0,0,0.25)';
+  // background fill for letterbox bars
+  camCtx.fillStyle = '#0b0b0f';
   camCtx.fillRect(0, 0, cw, ch);
 
-  // map normalized landmark (in full video coords) → cropped+mirrored canvas coords
+  // mirrored contain draw (full video, preserved aspect)
+  camCtx.save();
+  camCtx.scale(-1, 1);
+  camCtx.drawImage(results.image, 0, 0, vw, vh, -(dx + dW), dy, dW, dH);
+  camCtx.restore();
+  camCtx.fillStyle = 'rgba(0,0,0,0.22)';
+  camCtx.fillRect(dx, dy, dW, dH);
+
+  // map normalized landmark → letterboxed + mirrored canvas coords
   const toCam = (nx, ny) => ({
-    x: cw - ((nx * vw - sx) / sW) * cw,
-    y: ((ny * vh - sy) / sH) * ch,
+    x: cw - (dx + nx * dW),
+    y: dy + ny * dH,
   });
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
