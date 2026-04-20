@@ -167,27 +167,26 @@
     #mic-btn.denied, #cam-btn.denied { color: var(--led-peak); }
     #mic-btn.denied .led, #cam-btn.denied .led { background: var(--led-peak); box-shadow: 0 0 6px var(--led-peak); animation:none; }
 
-    /* ── LEFT SIDEBAR (WEBCAM) ── */
+    /* ── CAM PIP (bottom-left) ── */
     #cam-sb {
-      position:fixed; top:0; left:0; height:100vh;
+      position:fixed; bottom:20px; left:20px;
       width: 240px;
       background: linear-gradient(180deg, rgba(14,14,18,0.94) 0%, rgba(10,10,14,0.92) 100%);
       backdrop-filter: blur(20px) saturate(1.2);
       -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      border-right:1px solid var(--hairline);
-      box-shadow: inset -1px 0 0 rgba(255,255,255,0.03), 24px 0 60px rgba(0,0,0,0.6);
-      transform: translateX(-100%);
-      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+      border:1px solid var(--hairline); border-radius:2px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 28px rgba(0,0,0,0.7);
+      opacity:0; pointer-events:none; transform: translateY(8px);
+      transition: opacity 0.3s, transform 0.3s;
       z-index:10;
-      display:flex; flex-direction:column;
     }
-    #cam-sb.visible { transform: translateX(0); }
-    .cam-sb-inner { padding:18px; display:flex; flex-direction:column; gap:14px; }
+    #cam-sb.visible { opacity:1; pointer-events:auto; transform: translateY(0); }
+    .cam-sb-inner { padding:12px; display:flex; flex-direction:column; gap:10px; }
     .cam-video-box {
-      position:relative; width:100%; aspect-ratio: 16/9;
+      position:relative; width:100%; aspect-ratio: 4/3;
       border:1px solid var(--steel-3); border-radius:2px;
       overflow:hidden; background: var(--steel-0);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 18px rgba(0,0,0,0.7);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.6);
     }
     .cam-video-box::after {
       content:''; position:absolute; inset:0; pointer-events:none;
@@ -195,23 +194,14 @@
     }
     #cam-canvas { width:100%; height:100%; display:block; }
 
-    .readout-box {
-      padding: 10px 12px;
-      background: var(--steel-0);
-      border:1px solid var(--hairline); border-radius:2px;
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+    .cam-row {
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      font-size:9px; letter-spacing:0.22em; color: var(--ink-dim);
     }
-    .readout-box .k { display:block; font-size:8px; font-weight:600; letter-spacing:0.3em; color: var(--ink-dim); margin-bottom:6px; }
-    .readout-box .vrow { display:flex; align-items:baseline; gap:6px; }
-    .readout-box .v { font-family:var(--mono); font-size:36px; font-weight:200; color:#42f59e; line-height:1; text-shadow: 0 0 10px rgba(66,245,158,0.35); }
-    .readout-box .u { font-size:8px; letter-spacing:0.28em; color: var(--ink-dim); }
-    .readout-box .status {
-      display:flex; align-items:center; gap:8px;
-      font-size:10px; letter-spacing:0.22em; color: var(--ink);
-    }
-    .readout-box .status .dot { width:7px; height:7px; border-radius:50%; background: var(--led-off); box-shadow: inset 0 1px 1px rgba(0,0,0,0.7); }
-    .readout-box .status.locked .dot { background: #42f59e; box-shadow: 0 0 8px #42f59e; }
-    .readout-box .status.locked { color: #42f59e; }
+    .cam-row .val { font-family:var(--mono); font-size:14px; color:#42f59e; text-shadow: 0 0 8px rgba(66,245,158,0.35); letter-spacing:0; }
+    .cam-row .status-dot { width:6px; height:6px; border-radius:50%; background: var(--led-off); box-shadow: inset 0 1px 1px rgba(0,0,0,0.7); display:inline-block; margin-right:6px; vertical-align:middle; }
+    .cam-row.locked .status-dot { background:#42f59e; box-shadow: 0 0 6px #42f59e; }
+    .cam-row.locked { color:#42f59e; }
 
     #finger-dot {
       position:fixed; width:14px; height:14px;
@@ -254,28 +244,10 @@
 
 <aside id="cam-sb">
   <div class="cam-sb-inner">
-    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--hairline);">
-      <span class="title" style="font-size:10px;">HAND TRACK</span>
-      <span class="version">v 5.1</span>
-    </div>
-
     <div class="cam-video-box">
       <canvas id="cam-canvas" width="480" height="360"></canvas>
     </div>
-
-    <div class="readout-box">
-      <span class="k">Radius</span>
-      <div class="vrow"><span class="v" id="pip-radius">—</span><span class="u">PX</span></div>
-    </div>
-
-    <div class="readout-box">
-      <span class="k">Tracking</span>
-      <div class="status" id="pip-status"><span class="dot"></span><span class="txt">IDLE</span></div>
-    </div>
-
-    <div style="font-size:8px; letter-spacing:0.22em; color:var(--ink-dimmer); line-height:1.7;">
-      POINT INDEX FINGER<br>CENTER = NO RADIUS<br>EDGE = MAX RADIUS
-    </div>
+    <div class="cam-row" id="pip-status"><span><span class="status-dot"></span><span class="txt">IDLE</span></span><span class="val" id="pip-radius">—</span></div>
   </div>
 </aside>
 
@@ -643,10 +615,9 @@ const fingerDot = document.getElementById('finger-dot');
 const radiusSlider = document.getElementById('s-radius');
 const radiusVal = document.getElementById('v-radius');
 
-const LEFT_SB_W = 240;
 const RIGHT_PANEL_W = 288;
 function getCenter() {
-  const left = handsOn ? LEFT_SB_W : 0;
+  const left = 0;
   const right = panel.classList.contains('hidden') ? 0 : RIGHT_PANEL_W;
   return { x: left + (W - left - right) / 2, y: H / 2, left, right };
 }
@@ -682,13 +653,6 @@ async function toggleCam() {
     video = document.getElementById('v');
     video.srcObject = camStream;
     await video.play();
-
-    // match canvas + box to real webcam aspect (so user looks proportional)
-    const vw = video.videoWidth || 640;
-    const vh = video.videoHeight || 480;
-    camCanvas.width = vw;
-    camCanvas.height = vh;
-    document.querySelector('.cam-video-box').style.aspectRatio = `${vw} / ${vh}`;
 
     if (!handsModel) {
       handsModel = new Hands({
@@ -746,14 +710,28 @@ async function processCam() {
 
 function onHandResults(results) {
   const cw = camCanvas.width, ch = camCanvas.height;
+  const vw = results.image.width || (video && video.videoWidth) || cw;
+  const vh = results.image.height || (video && video.videoHeight) || ch;
 
-  // mirrored video into pip
+  // cover-fit source rect (center-crop video into 4:3 canvas, no stretching)
+  const sAR = vw / vh, dAR = cw / ch;
+  let sx = 0, sy = 0, sW = vw, sH = vh;
+  if (sAR > dAR) { sW = vh * dAR; sx = (vw - sW) / 2; }
+  else            { sH = vw / dAR; sy = (vh - sH) / 2; }
+
+  // mirrored cover draw
   camCtx.save();
   camCtx.scale(-1, 1);
-  camCtx.drawImage(results.image, -cw, 0, cw, ch);
+  camCtx.drawImage(results.image, sx, sy, sW, sH, -cw, 0, cw, ch);
   camCtx.restore();
   camCtx.fillStyle = 'rgba(0,0,0,0.25)';
   camCtx.fillRect(0, 0, cw, ch);
+
+  // map normalized landmark (in full video coords) → cropped+mirrored canvas coords
+  const toCam = (nx, ny) => ({
+    x: cw - ((nx * vw - sx) / sW) * cw,
+    y: ((ny * vh - sy) / sH) * ch,
+  });
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
@@ -763,9 +741,10 @@ function onHandResults(results) {
     camCtx.lineWidth = 1.5;
     camCtx.beginPath();
     for (const [a, b] of HAND_CONNECTIONS) {
-      const pa = lm[a], pb = lm[b];
-      camCtx.moveTo((1 - pa.x) * cw, pa.y * ch);
-      camCtx.lineTo((1 - pb.x) * cw, pb.y * ch);
+      const pa = toCam(lm[a].x, lm[a].y);
+      const pb = toCam(lm[b].x, lm[b].y);
+      camCtx.moveTo(pa.x, pa.y);
+      camCtx.lineTo(pb.x, pb.y);
     }
     camCtx.stroke();
 
@@ -773,15 +752,14 @@ function onHandResults(results) {
     camCtx.fillStyle = 'rgba(66,245,158,0.75)';
     for (let i = 0; i < lm.length; i++) {
       if (i === 8) continue;
-      const p = lm[i];
+      const p = toCam(lm[i].x, lm[i].y);
       camCtx.beginPath();
-      camCtx.arc((1 - p.x) * cw, p.y * ch, 2, 0, Math.PI * 2);
+      camCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
       camCtx.fill();
     }
 
-    const tip = lm[8];
-    const tx = (1 - tip.x) * cw;
-    const ty = tip.y * ch;
+    const tipCam = toCam(lm[8].x, lm[8].y);
+    const tx = tipCam.x, ty = tipCam.y;
 
     // fingertip marker in pip
     camCtx.strokeStyle = '#42f59e';
@@ -790,9 +768,9 @@ function onHandResults(results) {
     camCtx.fillStyle = '#42f59e';
     camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
 
-    // normalized offset from cam center, in [-0.5..0.5]
-    const nx = (1 - tip.x) - 0.5;
-    const ny = tip.y - 0.5;
+    // normalized offset in cam canvas (cropped view), in [-0.5..0.5]
+    const nx = (tx / cw) - 0.5;
+    const ny = (ty / ch) - 0.5;
 
     if (!fingerSm.init) { fingerSm.x = nx; fingerSm.y = ny; fingerSm.init = true; }
     fingerSm.x += (nx - fingerSm.x) * 0.4;
