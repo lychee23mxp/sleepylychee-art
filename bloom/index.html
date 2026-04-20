@@ -19,6 +19,10 @@
       --steel-3: #2a2a32;
       --hairline: rgba(255,255,255,0.06);
       --hairline-bright: rgba(255,255,255,0.12);
+      --led-on: #42f59e;
+      --led-off: #2a2a32;
+      --led-beat: #ffcc33;
+      --led-peak: #ff3355;
       --mono: 'JetBrains Mono','SF Mono','Roboto Mono',ui-monospace,Menlo,monospace;
     }
 
@@ -54,7 +58,7 @@
     }
     #panel.hidden { transform: translateX(100%); }
 
-    #panel-inner { padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 18px; }
+    #panel-inner { padding: 18px 18px 24px; display: flex; flex-direction: column; gap: 16px; }
 
     /* header */
     .hdr { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 1px solid var(--hairline); }
@@ -103,10 +107,11 @@
       padding-bottom: 2px;
       border-bottom: 1px solid var(--hairline);
       margin-bottom: 2px;
+      display: flex; justify-content: space-between; align-items: center;
     }
 
     /* control row */
-    .ctrl { display: flex; flex-direction: column; gap: 8px; }
+    .ctrl { display: flex; flex-direction: column; gap: 7px; }
     .ctrl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .ctrl-lbl {
       font-size: 9px; font-weight: 500; letter-spacing: 0.2em;
@@ -137,7 +142,6 @@
       padding: 0;
     }
 
-    /* track (pseudo-elements for cross-browser) */
     input[type="range"]::-webkit-slider-runnable-track {
       height: 4px;
       background: linear-gradient(180deg, #050506 0%, #0e0e12 100%);
@@ -223,6 +227,102 @@
     input[type="color"]::-webkit-color-swatch { border: none; }
     input[type="color"]::-moz-color-swatch { border: none; }
 
+    /* ── BPM DISPLAY ──────────────────────────────────────────── */
+    .bpm-row {
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    #bpm-num {
+      font-family: var(--mono);
+      font-size: 36px; font-weight: 200;
+      color: var(--ink);
+      line-height: 1;
+      letter-spacing: -1px;
+      min-width: 66px;
+    }
+    .bpm-unit { font-size: 9px; color: var(--ink-dim); letter-spacing: 0.2em; }
+
+    .led {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--led-off);
+      box-shadow: inset 0 1px 1px rgba(0,0,0,0.7);
+      transition: all 0.05s linear;
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+    .led.beat-on {
+      background: var(--led-beat);
+      box-shadow: 0 0 8px var(--led-beat), 0 0 2px var(--led-beat), inset 0 0 2px rgba(255,255,255,0.5);
+    }
+    .led.mic-on {
+      background: var(--led-on);
+      box-shadow: 0 0 8px var(--led-on), 0 0 2px var(--led-on);
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+    #tap-btn {
+      margin-left: auto;
+      padding: 7px 13px;
+      background: linear-gradient(180deg, var(--steel-2) 0%, var(--steel-1) 100%);
+      border: 1px solid var(--steel-3);
+      border-radius: 1px;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 9px; font-weight: 600; letter-spacing: 0.22em;
+      text-transform: uppercase; cursor: pointer; user-select: none;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 2px 3px rgba(0,0,0,0.6);
+      transition: all 0.08s;
+    }
+    #tap-btn:active {
+      background: linear-gradient(180deg, var(--steel-0) 0%, #050507 100%);
+      box-shadow: inset 0 2px 3px rgba(0,0,0,0.8);
+      transform: scale(0.96);
+    }
+
+    /* ── MIC BUTTON ─────────────────────────────────────────── */
+    #mic-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, var(--steel-2) 0%, var(--steel-1) 50%, var(--steel-2) 100%);
+      border: 1px solid var(--steel-3);
+      border-radius: 1px;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 9px; font-weight: 600; letter-spacing: 0.25em;
+      cursor: pointer; text-transform: uppercase;
+      width: 100%;
+      user-select: none;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.05),
+        0 2px 4px rgba(0,0,0,0.5);
+      transition: all 0.12s;
+    }
+    #mic-btn:hover { color: #fff; }
+    #mic-btn.denied { color: var(--led-peak); }
+    #mic-btn.denied .led { background: var(--led-peak); box-shadow: 0 0 6px var(--led-peak); animation: none; }
+
+    /* ── AUDIO METER ──────────────────────────────────────────── */
+    .meter {
+      height: 6px;
+      background: linear-gradient(180deg, #050506 0%, #0e0e12 100%);
+      border: 1px solid rgba(0,0,0,0.6);
+      border-radius: 1px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+    }
+    #meter-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1aff88 0%, #e8d62c 60%, #ff3355 100%);
+      transition: width 0.04s linear;
+      box-shadow: 0 0 4px currentColor;
+    }
+
     /* ── BUTTONS ──────────────────────────────────────────────── */
     .btn-row { display: flex; gap: 9px; margin-top: 2px; }
     .btn {
@@ -233,13 +333,9 @@
       border-radius: 1px;
       color: var(--ink);
       font-family: var(--mono);
-      font-size: 9px;
-      font-weight: 600;
-      letter-spacing: 0.28em;
-      cursor: pointer;
-      text-transform: uppercase;
-      text-align: center;
-      user-select: none;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.28em;
+      cursor: pointer; text-transform: uppercase;
+      text-align: center; user-select: none;
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.08),
         inset 0 -1px 0 rgba(0,0,0,0.4),
@@ -256,7 +352,6 @@
       color: var(--ink-dim);
     }
 
-    /* status strip */
     .status {
       display: flex; justify-content: space-between; font-size: 8px;
       color: var(--ink-dimmer); letter-spacing: 0.2em;
@@ -280,7 +375,7 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
       <button id="close-btn" title="Hide panel">✕</button>
-      <span class="version">v 2.0</span>
+      <span class="version">v 3.0</span>
     </div>
   </div>
 
@@ -328,6 +423,48 @@
       <span class="ctrl-val" id="v-gmov">+0.050</span>
     </div>
     <input type="range" id="s-gmov" min="-0.2" max="0.2" value="0.05" step="0.001">
+  </div>
+
+  <!-- ──── RHYTHM ──── -->
+  <div class="section-label"><span>Rhythm</span><span class="led" id="beat-led"></span></div>
+
+  <div class="bpm-row">
+    <span id="bpm-num">120</span>
+    <span class="bpm-unit">BPM</span>
+    <button id="tap-btn">TAP</button>
+  </div>
+
+  <input type="range" id="s-bpm" min="50" max="200" value="120" step="1">
+
+  <div class="ctrl">
+    <div class="ctrl-head">
+      <span class="ctrl-lbl">Beat Pulse</span>
+      <span class="ctrl-val" id="v-pulse">0.40</span>
+    </div>
+    <input type="range" id="s-pulse" min="0" max="1" value="0.4" step="0.01">
+  </div>
+
+  <!-- ──── AUDIO ──── -->
+  <div class="section-label"><span>Audio Input</span><span class="led" id="mic-status"></span></div>
+
+  <button id="mic-btn"><span class="led" id="mic-led"></span><span id="mic-label">ENABLE MIC</span></button>
+
+  <div class="meter"><div id="meter-bar"></div></div>
+
+  <div class="ctrl">
+    <div class="ctrl-head">
+      <span class="ctrl-lbl">Sensitivity</span>
+      <span class="ctrl-val" id="v-sens">1.00</span>
+    </div>
+    <input type="range" id="s-sens" min="0" max="3" value="1" step="0.01">
+  </div>
+
+  <div class="ctrl">
+    <div class="ctrl-head">
+      <span class="ctrl-lbl">Reactivity</span>
+      <span class="ctrl-val" id="v-react">0.50</span>
+    </div>
+    <input type="range" id="s-react" min="0" max="1" value="0.5" step="0.01">
   </div>
 
   <!-- ──── COLOR ──── -->
@@ -388,6 +525,10 @@ const P = {
   rot:      1.0,
   gspeed:   0.2,
   gmov:     0.05,
+  bpm:      120,
+  pulse:    0.4,
+  sens:     1.0,
+  react:    0.5,
   pri:      '#ffffff',
   sec:      '#000000',
   bg:       '#000000',
@@ -395,6 +536,21 @@ const P = {
 
 let frameCount = 0;
 let gAngle = 0;
+let time = 0;
+let lastTs = null;
+
+// Rhythm state
+let beatPhase = 0;
+let lastBeatPhase = 0;
+let beatEnv = 0;
+
+// Audio state
+let audioCtx = null, analyser = null, audioData = null, audioStream = null;
+let audioOn = false;
+let audioLevel = 0;
+
+// Tap tempo
+let tapTimes = [];
 
 // ══ HELPERS ══════════════════════════════════════════════════════════════════
 function parseHex(hex) {
@@ -408,37 +564,62 @@ function parseHex(hex) {
 function lerpColor(a, b, t) {
   const [ar,ag,ab] = parseHex(a);
   const [br,bg,bb] = parseHex(b);
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
+  const r  = Math.round(ar + (br - ar) * t);
+  const g  = Math.round(ag + (bg - ag) * t);
   const bl = Math.round(ab + (bb - ab) * t);
   return `rgb(${r},${g},${bl})`;
 }
 
 // ══ DRAW LOOP ════════════════════════════════════════════════════════════════
-// Architecture (faithful port of Jake Welch's original):
-//   • Never clears canvas between frames → petals emerge as stamps accumulate
-//   • Each frame: rotate context by (frame × rotSpeed), stamp one thin rect
-//   • Rect is filled with a radial gradient whose colors oscillate and whose
-//     center moves along a circle around the canvas center.
-//
-const GRAD_ANGLE = 1000; // gradient size (fixed)
-const GRAD_SCALE = 200;  // gradient-center orbit radius (fixed)
+const GRAD_ANGLE = 1000;
+const GRAD_SCALE = 200;
 
 let lastFpsT = performance.now(), fpsFrames = 0, fpsEl;
 
-function draw() {
+function draw(ts) {
   requestAnimationFrame(draw);
+  if (lastTs == null) lastTs = ts;
+  const dt = Math.min((ts - lastTs) / 1000, 0.1);
+  lastTs = ts;
+  time += dt;
   frameCount++;
 
-  // fps readout
+  // fps
   fpsFrames++;
-  const now = performance.now();
-  if (now - lastFpsT >= 500) {
-    const fps = Math.round((fpsFrames * 1000) / (now - lastFpsT));
-    if (fpsEl) fpsEl.textContent = fps + ' FPS';
-    fpsFrames = 0; lastFpsT = now;
+  if (ts - lastFpsT >= 500) {
+    fpsEl.textContent = Math.round((fpsFrames * 1000) / (ts - lastFpsT)) + ' FPS';
+    fpsFrames = 0; lastFpsT = ts;
   }
 
+  // ── BEAT PHASE ─────────────────────────────────────────────────────────────
+  beatPhase = (time * P.bpm / 60) % 1;
+  if (beatPhase < lastBeatPhase) { beatEnv = 1; flashBeat(); }
+  lastBeatPhase = beatPhase;
+  beatEnv = Math.max(0, beatEnv - dt * 7);  // decay over ~0.14s
+
+  // ── AUDIO LEVEL ────────────────────────────────────────────────────────────
+  if (audioOn && analyser) {
+    analyser.getByteFrequencyData(audioData);
+    const nBass = Math.max(4, Math.floor(analyser.frequencyBinCount * 0.15));
+    let bassSum = 0;
+    for (let i = 0; i < nBass; i++) bassSum += audioData[i];
+    const bass = (bassSum / nBass) / 255;
+    let fullSum = 0;
+    for (let i = 0; i < analyser.frequencyBinCount; i++) fullSum += audioData[i];
+    const full = (fullSum / analyser.frequencyBinCount) / 255;
+    const raw = Math.max(bass * 1.4, full);
+    audioLevel = raw * P.sens;
+    meterBar.style.width = Math.min(100, audioLevel * 100) + '%';
+  } else {
+    audioLevel = 0;
+  }
+
+  // ── REACTIVE MODULATION ────────────────────────────────────────────────────
+  const reactive = (beatEnv * P.pulse) + (audioLevel * P.react);
+  const liveSlice = P.slice * (1 + reactive * 4);
+  const liveGmov  = P.gmov + (audioLevel * P.react * 0.1 * Math.sign(P.gmov || 1));
+
+  // ── GRADIENT COLOURS ───────────────────────────────────────────────────────
   const t = Math.sin(frameCount * P.gspeed) * 0.5 + 0.5;
   const cS = lerpColor(P.pri, P.sec, t);
   const c1 = lerpColor(P.sec, P.pri, t);
@@ -446,6 +627,7 @@ function draw() {
   const c3 = lerpColor(P.sec, P.pri, t);
   const cE = lerpColor(P.pri, P.sec, t);
 
+  // ── STAMP ──────────────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(W / 2, H / 2);
 
@@ -465,21 +647,97 @@ function draw() {
   ctx.fillStyle = grad;
 
   ctx.rotate((frameCount * P.rot) * Math.PI / 180);
-  ctx.fillRect(-P.radius / 2, -P.slice / 2, P.radius, P.slice);
+  ctx.fillRect(-P.radius / 2, -liveSlice / 2, P.radius, liveSlice);
 
   ctx.restore();
 
-  gAngle += P.gmov;
+  gAngle += liveGmov;
 }
+
+// ══ BEAT LED ═════════════════════════════════════════════════════════════════
+const beatLed = document.getElementById('beat-led');
+let beatFlashTimer;
+function flashBeat() {
+  beatLed.classList.add('beat-on');
+  clearTimeout(beatFlashTimer);
+  beatFlashTimer = setTimeout(() => beatLed.classList.remove('beat-on'), 90);
+}
+
+// ══ TAP TEMPO ═══════════════════════════════════════════════════════════════
+document.getElementById('tap-btn').addEventListener('click', () => {
+  const now = performance.now();
+  if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2400) tapTimes = [];
+  tapTimes.push(now);
+  if (tapTimes.length > 8) tapTimes.shift();
+  if (tapTimes.length >= 2) {
+    let sum = 0;
+    for (let i = 1; i < tapTimes.length; i++) sum += tapTimes[i] - tapTimes[i-1];
+    const bpm = Math.round(60000 / (sum / (tapTimes.length - 1)));
+    P.bpm = Math.max(50, Math.min(200, bpm));
+    document.getElementById('s-bpm').value = P.bpm;
+    document.getElementById('bpm-num').textContent = P.bpm;
+  }
+  flashBeat();
+});
+
+// ══ AUDIO ════════════════════════════════════════════════════════════════════
+const micBtn    = document.getElementById('mic-btn');
+const micLed    = document.getElementById('mic-led');
+const micStatus = document.getElementById('mic-status');
+const micLabel  = document.getElementById('mic-label');
+const meterBar  = document.getElementById('meter-bar');
+
+async function toggleMic() {
+  if (audioOn) { stopMic(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.72;
+    src.connect(analyser);
+    audioData = new Uint8Array(analyser.frequencyBinCount);
+    audioStream = stream;
+    audioOn = true;
+    micBtn.classList.remove('denied');
+    micLed.classList.add('mic-on');
+    micStatus.classList.add('mic-on');
+    micLabel.textContent = 'LISTENING';
+  } catch (err) {
+    console.warn('Mic error:', err);
+    micBtn.classList.add('denied');
+    micLabel.textContent = err.name === 'NotAllowedError' ? 'ACCESS DENIED' : 'MIC UNAVAILABLE';
+  }
+}
+
+function stopMic() {
+  if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+  if (audioCtx)    audioCtx.close();
+  audioStream = null; audioCtx = null; analyser = null; audioData = null;
+  audioOn = false; audioLevel = 0;
+  micLed.classList.remove('mic-on');
+  micStatus.classList.remove('mic-on');
+  micLabel.textContent = 'ENABLE MIC';
+  meterBar.style.width = '0%';
+}
+micBtn.addEventListener('click', toggleMic);
 
 // ══ UI WIRING ════════════════════════════════════════════════════════════════
 function bind(sid, vid, key, fmt) {
   const s = document.getElementById(sid);
-  const v = document.getElementById(vid);
+  const v = vid ? document.getElementById(vid) : null;
   const update = () => {
     const val = parseFloat(s.value);
     P[key] = val;
-    v.textContent = fmt ? fmt(val) : val;
+    if (v) v.textContent = fmt ? fmt(val) : val;
   };
   s.addEventListener('input', update);
   update();
@@ -490,15 +748,24 @@ bind('s-slice',  'v-slice',  'slice',  v => Math.round(v));
 bind('s-rot',    'v-rot',    'rot',    v => (v >= 0 ? '+' : '') + v.toFixed(2));
 bind('s-gspeed', 'v-gspeed', 'gspeed', v => v.toFixed(3));
 bind('s-gmov',   'v-gmov',   'gmov',   v => (v >= 0 ? '+' : '') + v.toFixed(3));
+bind('s-pulse',  'v-pulse',  'pulse',  v => v.toFixed(2));
+bind('s-sens',   'v-sens',   'sens',   v => v.toFixed(2));
+bind('s-react',  'v-react',  'react',  v => v.toFixed(2));
 
-document.getElementById('c-pri').addEventListener('input', e => P.pri = e.target.value);
-document.getElementById('c-sec').addEventListener('input', e => P.sec = e.target.value);
-document.getElementById('c-bg').addEventListener('input', e => {
-  P.bg = e.target.value;
-  clearCanvas();
+// BPM slider — custom (updates big display)
+const bpmSlider = document.getElementById('s-bpm');
+const bpmNum    = document.getElementById('bpm-num');
+bpmSlider.addEventListener('input', () => {
+  P.bpm = parseInt(bpmSlider.value, 10);
+  bpmNum.textContent = P.bpm;
 });
 
-// panel
+// Colors
+document.getElementById('c-pri').addEventListener('input', e => P.pri = e.target.value);
+document.getElementById('c-sec').addEventListener('input', e => P.sec = e.target.value);
+document.getElementById('c-bg').addEventListener('input', e => { P.bg = e.target.value; clearCanvas(); });
+
+// Panel
 const panel = document.getElementById('panel');
 const openBtn = document.getElementById('open-btn');
 document.getElementById('close-btn').addEventListener('click', () => {
@@ -510,7 +777,7 @@ openBtn.addEventListener('click', () => {
   openBtn.classList.remove('visible');
 });
 
-// actions
+// ══ ACTIONS ═════════════════════════════════════════════════════════════════
 function clearCanvas() {
   ctx.save();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
