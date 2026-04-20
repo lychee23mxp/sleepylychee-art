@@ -167,60 +167,39 @@
     #mic-btn.denied, #cam-btn.denied { color: var(--led-peak); }
     #mic-btn.denied .led, #cam-btn.denied .led { background: var(--led-peak); box-shadow: 0 0 6px var(--led-peak); animation:none; }
 
-    /* ── WEBCAM PIP + FINGER OVERLAY ── */
+    /* ── WEBCAM PIP ── */
     #cam-pip {
-      position:fixed; bottom:16px; left:16px; z-index:15;
-      width:200px; height:150px;
+      position:fixed; bottom:20px; left:20px; z-index:15;
+      width:280px; height:210px;
       border:1px solid var(--steel-3); border-radius:2px;
       overflow:hidden;
       background: var(--steel-0);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 22px rgba(0,0,0,0.7);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 28px rgba(0,0,0,0.8);
       opacity:1; transition: opacity 0.3s, transform 0.3s;
     }
     #cam-pip.hidden { opacity:0; pointer-events:none; transform: translateY(8px); }
     #cam-pip::after {
       content:''; position:absolute; inset:0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.3) 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%);
       pointer-events:none;
     }
     #cam-pip .label {
-      position:absolute; top:6px; left:8px; z-index:2;
-      font-size:8px; letter-spacing:0.25em; color:#42f59e;
+      position:absolute; top:8px; left:10px; z-index:2;
+      font-size:8px; letter-spacing:0.28em; color:#42f59e;
       text-shadow: 0 0 6px rgba(66,245,158,0.6);
     }
+    #cam-pip .readout {
+      position:absolute; top:8px; right:10px; z-index:2;
+      font-family:var(--mono); font-size:9px; letter-spacing:0.15em;
+      color:#42f59e; text-shadow: 0 0 6px rgba(66,245,158,0.5);
+      display:flex; gap:8px; align-items:center;
+    }
+    #cam-pip .readout .dim { color: rgba(66,245,158,0.5); }
+    #cam-pip .status-line {
+      position:absolute; bottom:8px; left:10px; z-index:2;
+      font-size:8px; letter-spacing:0.22em; color: rgba(66,245,158,0.6);
+    }
     #cam-canvas { width:100%; height:100%; display:block; }
-
-    #finger-dot {
-      position:fixed; width:22px; height:22px; margin-left:-11px; margin-top:-11px;
-      border:2px solid #42f59e; border-radius:50%;
-      box-shadow: 0 0 16px #42f59e, inset 0 0 6px rgba(66,245,158,0.6);
-      background: rgba(66,245,158,0.12);
-      pointer-events:none; z-index:14;
-      transition: opacity 0.18s;
-    }
-    #finger-dot::before {
-      content:''; position:absolute; inset:6px;
-      border-radius:50%; background:#42f59e;
-      box-shadow: 0 0 6px #42f59e;
-    }
-    #finger-dot.hidden { opacity:0; }
-
-    #finger-line { position:fixed; inset:0; pointer-events:none; z-index:13; transition: opacity 0.18s; }
-    #finger-line.hidden { opacity:0; }
-    #finger-line line { stroke: rgba(66,245,158,0.35); stroke-width:1; stroke-dasharray: 5 5; }
-    #center-mark {
-      position:fixed; width:14px; height:14px; margin-left:-7px; margin-top:-7px;
-      border:1px solid rgba(66,245,158,0.5); border-radius:50%;
-      pointer-events:none; z-index:13;
-      transition: opacity 0.18s;
-    }
-    #center-mark.hidden { opacity:0; }
-    #center-mark::before, #center-mark::after {
-      content:''; position:absolute;
-      background: rgba(66,245,158,0.5);
-    }
-    #center-mark::before { left:50%; top:-4px; bottom:-4px; width:1px; margin-left:-0.5px; }
-    #center-mark::after { top:50%; left:-4px; right:-4px; height:1px; margin-top:-0.5px; }
 
     input[type="range"]:disabled { opacity:0.35; cursor:not-allowed; }
 
@@ -252,11 +231,10 @@
 <video id="v" autoplay playsinline muted style="display:none"></video>
 <div id="cam-pip" class="hidden">
   <span class="label">HAND TRACK</span>
-  <canvas id="cam-canvas" width="320" height="240"></canvas>
+  <span class="readout"><span class="dim">R</span><span id="pip-radius">—</span></span>
+  <canvas id="cam-canvas" width="560" height="420"></canvas>
+  <span class="status-line" id="pip-status">SEARCHING…</span>
 </div>
-<div id="center-mark" class="hidden"></div>
-<svg id="finger-line" class="hidden" width="100%" height="100%"><line x1="0" y1="0" x2="0" y2="0"/></svg>
-<div id="finger-dot" class="hidden"></div>
 
 <aside id="panel">
 <div id="panel-inner">
@@ -612,12 +590,20 @@ const camLabel  = document.getElementById('cam-label');
 const camPip    = document.getElementById('cam-pip');
 const camCanvas = document.getElementById('cam-canvas');
 const camCtx    = camCanvas.getContext('2d');
-const fingerDot = document.getElementById('finger-dot');
-const fingerLine = document.getElementById('finger-line');
-const fingerLineEl = fingerLine.querySelector('line');
-const centerMark = document.getElementById('center-mark');
+const pipRadius = document.getElementById('pip-radius');
+const pipStatus = document.getElementById('pip-status');
 const radiusSlider = document.getElementById('s-radius');
 const radiusVal = document.getElementById('v-radius');
+
+// hand skeleton connections (MediaPipe Hands)
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],        // thumb
+  [0,5],[5,6],[6,7],[7,8],        // index
+  [5,9],[9,10],[10,11],[11,12],   // middle
+  [9,13],[13,14],[14,15],[15,16], // ring
+  [13,17],[17,18],[18,19],[19,20],// pinky
+  [0,17],                          // palm
+];
 
 let handsOn = false;
 let video = null;
@@ -659,9 +645,8 @@ async function toggleCam() {
     camLed.classList.add('mic-on');
     camLabel.textContent = 'TRACKING';
     camPip.classList.remove('hidden');
-    centerMark.classList.remove('hidden');
+    pipStatus.textContent = 'SEARCHING…';
     radiusSlider.disabled = true;
-    updateCenterMark();
     processCam();
   } catch (err) {
     camBtn.classList.add('denied');
@@ -677,18 +662,10 @@ function stopCam() {
   camLed.classList.remove('mic-on');
   camLabel.textContent = 'ENABLE CAMERA';
   camPip.classList.add('hidden');
-  fingerDot.classList.add('hidden');
-  fingerLine.classList.add('hidden');
-  centerMark.classList.add('hidden');
+  pipRadius.textContent = '—';
   radiusSlider.disabled = false;
   fingerSm.init = false;
 }
-
-function updateCenterMark() {
-  centerMark.style.left = (W / 2) + 'px';
-  centerMark.style.top  = (H / 2) + 'px';
-}
-window.addEventListener('resize', updateCenterMark);
 
 async function processCam() {
   if (!handsOn) return;
@@ -699,66 +676,97 @@ async function processCam() {
 }
 
 function onHandResults(results) {
-  // draw mirrored video preview into pip
+  const cw = camCanvas.width, ch = camCanvas.height;
+
+  // mirrored video into pip
   camCtx.save();
   camCtx.scale(-1, 1);
-  camCtx.drawImage(results.image, -camCanvas.width, 0, camCanvas.width, camCanvas.height);
+  camCtx.drawImage(results.image, -cw, 0, cw, ch);
   camCtx.restore();
-  // subtle vignette
-  camCtx.fillStyle = 'rgba(0,0,0,0.25)';
-  camCtx.fillRect(0, 0, camCanvas.width, camCanvas.height);
+  camCtx.fillStyle = 'rgba(0,0,0,0.35)';
+  camCtx.fillRect(0, 0, cw, ch);
+
+  // pip center (represents art canvas center)
+  const pcx = cw / 2, pcy = ch / 2;
+
+  // center crosshair + circle
+  camCtx.strokeStyle = 'rgba(66,245,158,0.45)';
+  camCtx.lineWidth = 1;
+  camCtx.beginPath();
+  camCtx.arc(pcx, pcy, 10, 0, Math.PI * 2);
+  camCtx.moveTo(pcx - 14, pcy); camCtx.lineTo(pcx + 14, pcy);
+  camCtx.moveTo(pcx, pcy - 14); camCtx.lineTo(pcx, pcy + 14);
+  camCtx.stroke();
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
-    const tip = lm[8]; // index fingertip
 
-    // pip overlay (mirrored)
-    const pipX = (1 - tip.x) * camCanvas.width;
-    const pipY = tip.y * camCanvas.height;
-    camCtx.strokeStyle = '#42f59e';
-    camCtx.lineWidth = 2;
-    camCtx.beginPath(); camCtx.arc(pipX, pipY, 10, 0, Math.PI * 2); camCtx.stroke();
-    camCtx.fillStyle = '#42f59e';
-    camCtx.beginPath(); camCtx.arc(pipX, pipY, 3, 0, Math.PI * 2); camCtx.fill();
-    // pip center crosshair
-    const cx = camCanvas.width / 2, cy = camCanvas.height / 2;
-    camCtx.strokeStyle = 'rgba(66,245,158,0.4)';
-    camCtx.lineWidth = 1;
+    // draw hand skeleton (mirrored)
+    camCtx.strokeStyle = 'rgba(66,245,158,0.55)';
+    camCtx.lineWidth = 1.5;
     camCtx.beginPath();
-    camCtx.moveTo(cx - 8, cy); camCtx.lineTo(cx + 8, cy);
-    camCtx.moveTo(cx, cy - 8); camCtx.lineTo(cx, cy + 8);
+    for (const [a, b] of HAND_CONNECTIONS) {
+      const pa = lm[a], pb = lm[b];
+      camCtx.moveTo((1 - pa.x) * cw, pa.y * ch);
+      camCtx.lineTo((1 - pb.x) * cw, pb.y * ch);
+    }
     camCtx.stroke();
 
-    // map to main canvas (mirror horizontally so movement feels natural)
-    const fx = (1 - tip.x) * W;
-    const fy = tip.y * H;
+    // landmark joints
+    camCtx.fillStyle = 'rgba(66,245,158,0.8)';
+    for (let i = 0; i < lm.length; i++) {
+      const p = lm[i];
+      camCtx.beginPath();
+      camCtx.arc((1 - p.x) * cw, p.y * ch, i === 8 ? 0 : 2, 0, Math.PI * 2);
+      camCtx.fill();
+    }
 
-    if (!fingerSm.init) { fingerSm.x = fx; fingerSm.y = fy; fingerSm.init = true; }
-    fingerSm.x += (fx - fingerSm.x) * 0.35;
-    fingerSm.y += (fy - fingerSm.y) * 0.35;
+    const tip = lm[8];
+    const tx = (1 - tip.x) * cw;
+    const ty = tip.y * ch;
 
-    // distance from center → radius (flower reaches out to fingertip)
-    const dx = fingerSm.x - W / 2;
-    const dy = fingerSm.y - H / 2;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const r = Math.max(50, Math.min(2000, dist * 2));
+    // dashed line from center to fingertip (in pip)
+    camCtx.save();
+    camCtx.setLineDash([5, 4]);
+    camCtx.strokeStyle = 'rgba(66,245,158,0.6)';
+    camCtx.lineWidth = 1;
+    camCtx.beginPath();
+    camCtx.moveTo(pcx, pcy); camCtx.lineTo(tx, ty);
+    camCtx.stroke();
+    camCtx.restore();
+
+    // fingertip marker
+    camCtx.strokeStyle = '#42f59e';
+    camCtx.lineWidth = 2;
+    camCtx.beginPath(); camCtx.arc(tx, ty, 9, 0, Math.PI * 2); camCtx.stroke();
+    camCtx.fillStyle = '#42f59e';
+    camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
+    camCtx.shadowBlur = 12; camCtx.shadowColor = '#42f59e';
+    camCtx.beginPath(); camCtx.arc(tx, ty, 4, 0, Math.PI * 2); camCtx.fill();
+    camCtx.shadowBlur = 0;
+
+    // smooth fingertip in pip space
+    if (!fingerSm.init) { fingerSm.x = tx; fingerSm.y = ty; fingerSm.init = true; }
+    fingerSm.x += (tx - fingerSm.x) * 0.35;
+    fingerSm.y += (ty - fingerSm.y) * 0.35;
+
+    // map pip-space offset to art-canvas radius
+    // (pip diag ↔ art-canvas diag) so reach-to-edge maps to reach-to-edge
+    const pipDiag = Math.sqrt(cw * cw + ch * ch) / 2;
+    const artDiag = Math.sqrt(W * W + H * H) / 2;
+    const dx = fingerSm.x - pcx;
+    const dy = fingerSm.y - pcy;
+    const pipDist = Math.sqrt(dx * dx + dy * dy);
+    const artDist = (pipDist / pipDiag) * artDiag;
+    const r = Math.max(50, Math.min(2000, artDist * 2));
     P.radius = r;
     radiusSlider.value = r;
     radiusVal.textContent = Math.round(r);
-
-    fingerDot.classList.remove('hidden');
-    fingerDot.style.left = fingerSm.x + 'px';
-    fingerDot.style.top  = fingerSm.y + 'px';
-
-    fingerLine.classList.remove('hidden');
-    fingerLineEl.setAttribute('x1', W / 2);
-    fingerLineEl.setAttribute('y1', H / 2);
-    fingerLineEl.setAttribute('x2', fingerSm.x);
-    fingerLineEl.setAttribute('y2', fingerSm.y);
+    pipRadius.textContent = Math.round(r);
+    pipStatus.textContent = 'LOCKED';
   } else {
-    fingerDot.classList.add('hidden');
-    fingerLine.classList.add('hidden');
     fingerSm.init = false;
+    pipStatus.textContent = 'SEARCHING…';
   }
 }
 
