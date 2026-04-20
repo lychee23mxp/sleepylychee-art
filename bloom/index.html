@@ -167,39 +167,61 @@
     #mic-btn.denied, #cam-btn.denied { color: var(--led-peak); }
     #mic-btn.denied .led, #cam-btn.denied .led { background: var(--led-peak); box-shadow: 0 0 6px var(--led-peak); animation:none; }
 
-    /* ── WEBCAM PIP ── */
-    #cam-pip {
-      position:fixed; bottom:20px; left:20px; z-index:15;
-      width:280px; height:210px;
+    /* ── LEFT SIDEBAR (WEBCAM) ── */
+    #cam-sb {
+      position:fixed; top:0; left:0; height:100vh;
+      width: 240px;
+      background: linear-gradient(180deg, rgba(14,14,18,0.94) 0%, rgba(10,10,14,0.92) 100%);
+      backdrop-filter: blur(20px) saturate(1.2);
+      -webkit-backdrop-filter: blur(20px) saturate(1.2);
+      border-right:1px solid var(--hairline);
+      box-shadow: inset -1px 0 0 rgba(255,255,255,0.03), 24px 0 60px rgba(0,0,0,0.6);
+      transform: translateX(-100%);
+      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+      z-index:10;
+      display:flex; flex-direction:column;
+    }
+    #cam-sb.visible { transform: translateX(0); }
+    .cam-sb-inner { padding:18px; display:flex; flex-direction:column; gap:14px; }
+    .cam-video-box {
+      position:relative; width:100%; aspect-ratio: 4/3;
       border:1px solid var(--steel-3); border-radius:2px;
-      overflow:hidden;
-      background: var(--steel-0);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 28px rgba(0,0,0,0.8);
-      opacity:1; transition: opacity 0.3s, transform 0.3s;
+      overflow:hidden; background: var(--steel-0);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 18px rgba(0,0,0,0.7);
     }
-    #cam-pip.hidden { opacity:0; pointer-events:none; transform: translateY(8px); }
-    #cam-pip::after {
-      content:''; position:absolute; inset:0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%);
-      pointer-events:none;
-    }
-    #cam-pip .label {
-      position:absolute; top:8px; left:10px; z-index:2;
-      font-size:8px; letter-spacing:0.28em; color:#42f59e;
-      text-shadow: 0 0 6px rgba(66,245,158,0.6);
-    }
-    #cam-pip .readout {
-      position:absolute; top:8px; right:10px; z-index:2;
-      font-family:var(--mono); font-size:9px; letter-spacing:0.15em;
-      color:#42f59e; text-shadow: 0 0 6px rgba(66,245,158,0.5);
-      display:flex; gap:8px; align-items:center;
-    }
-    #cam-pip .readout .dim { color: rgba(66,245,158,0.5); }
-    #cam-pip .status-line {
-      position:absolute; bottom:8px; left:10px; z-index:2;
-      font-size:8px; letter-spacing:0.22em; color: rgba(66,245,158,0.6);
+    .cam-video-box::after {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.3) 100%);
     }
     #cam-canvas { width:100%; height:100%; display:block; }
+
+    .readout-box {
+      padding: 10px 12px;
+      background: var(--steel-0);
+      border:1px solid var(--hairline); border-radius:2px;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+    }
+    .readout-box .k { display:block; font-size:8px; font-weight:600; letter-spacing:0.3em; color: var(--ink-dim); margin-bottom:6px; }
+    .readout-box .vrow { display:flex; align-items:baseline; gap:6px; }
+    .readout-box .v { font-family:var(--mono); font-size:36px; font-weight:200; color:#42f59e; line-height:1; text-shadow: 0 0 10px rgba(66,245,158,0.35); }
+    .readout-box .u { font-size:8px; letter-spacing:0.28em; color: var(--ink-dim); }
+    .readout-box .status {
+      display:flex; align-items:center; gap:8px;
+      font-size:10px; letter-spacing:0.22em; color: var(--ink);
+    }
+    .readout-box .status .dot { width:7px; height:7px; border-radius:50%; background: var(--led-off); box-shadow: inset 0 1px 1px rgba(0,0,0,0.7); }
+    .readout-box .status.locked .dot { background: #42f59e; box-shadow: 0 0 8px #42f59e; }
+    .readout-box .status.locked { color: #42f59e; }
+
+    #finger-dot {
+      position:fixed; width:14px; height:14px;
+      background:#42f59e; border-radius:50%;
+      box-shadow: 0 0 14px #42f59e, 0 0 4px #fff;
+      transform: translate(-50%, -50%);
+      pointer-events:none; z-index:12;
+      transition: opacity 0.18s;
+    }
+    #finger-dot.hidden { opacity:0; }
 
     input[type="range"]:disabled { opacity:0.35; cursor:not-allowed; }
 
@@ -229,12 +251,35 @@
 <button id="open-btn" title="Open">≡</button>
 
 <video id="v" autoplay playsinline muted style="display:none"></video>
-<div id="cam-pip" class="hidden">
-  <span class="label">HAND TRACK</span>
-  <span class="readout"><span class="dim">R</span><span id="pip-radius">—</span></span>
-  <canvas id="cam-canvas" width="560" height="420"></canvas>
-  <span class="status-line" id="pip-status">SEARCHING…</span>
-</div>
+
+<aside id="cam-sb">
+  <div class="cam-sb-inner">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--hairline);">
+      <span class="title" style="font-size:10px;">HAND TRACK</span>
+      <span class="version">v 5.1</span>
+    </div>
+
+    <div class="cam-video-box">
+      <canvas id="cam-canvas" width="480" height="360"></canvas>
+    </div>
+
+    <div class="readout-box">
+      <span class="k">Radius</span>
+      <div class="vrow"><span class="v" id="pip-radius">—</span><span class="u">PX</span></div>
+    </div>
+
+    <div class="readout-box">
+      <span class="k">Tracking</span>
+      <div class="status" id="pip-status"><span class="dot"></span><span class="txt">IDLE</span></div>
+    </div>
+
+    <div style="font-size:8px; letter-spacing:0.22em; color:var(--ink-dimmer); line-height:1.7;">
+      POINT INDEX FINGER<br>CENTER = NO RADIUS<br>EDGE = MAX RADIUS
+    </div>
+  </div>
+</aside>
+
+<div id="finger-dot" class="hidden"></div>
 
 <aside id="panel">
 <div id="panel-inner">
@@ -486,9 +531,10 @@ function draw(ts) {
   const cA = rgbStr(lerpRGB(priRGB, secRGB, tMix));
   const cB = rgbStr(lerpRGB(secRGB, priRGB, tMix));
 
-  // ── stamp
+  // ── stamp (offset center so visible panels don't block flower)
+  const cen = getCenter();
   ctx.save();
-  ctx.translate(W / 2, H / 2);
+  ctx.translate(cen.x, cen.y);
 
   const cosA = Math.cos(gAngle), sinA = Math.sin(gAngle);
   const grad = ctx.createRadialGradient(
@@ -587,13 +633,23 @@ micBtn.addEventListener('click', toggleMic);
 const camBtn    = document.getElementById('cam-btn');
 const camLed    = document.getElementById('cam-led');
 const camLabel  = document.getElementById('cam-label');
-const camPip    = document.getElementById('cam-pip');
+const camSb     = document.getElementById('cam-sb');
 const camCanvas = document.getElementById('cam-canvas');
 const camCtx    = camCanvas.getContext('2d');
 const pipRadius = document.getElementById('pip-radius');
 const pipStatus = document.getElementById('pip-status');
+const pipStatusTxt = pipStatus.querySelector('.txt');
+const fingerDot = document.getElementById('finger-dot');
 const radiusSlider = document.getElementById('s-radius');
 const radiusVal = document.getElementById('v-radius');
+
+const LEFT_SB_W = 240;
+const RIGHT_PANEL_W = 288;
+function getCenter() {
+  const left = handsOn ? LEFT_SB_W : 0;
+  const right = panel.classList.contains('hidden') ? 0 : RIGHT_PANEL_W;
+  return { x: left + (W - left - right) / 2, y: H / 2, left, right };
+}
 
 // hand skeleton connections (MediaPipe Hands)
 const HAND_CONNECTIONS = [
@@ -644,9 +700,11 @@ async function toggleCam() {
     camBtn.classList.remove('denied');
     camLed.classList.add('mic-on');
     camLabel.textContent = 'TRACKING';
-    camPip.classList.remove('hidden');
-    pipStatus.textContent = 'SEARCHING…';
+    camSb.classList.add('visible');
+    pipStatusTxt.textContent = 'SEARCHING';
+    pipStatus.classList.remove('locked');
     radiusSlider.disabled = true;
+    clearCanvas();
     processCam();
   } catch (err) {
     camBtn.classList.add('denied');
@@ -661,8 +719,12 @@ function stopCam() {
   if (video) video.srcObject = null;
   camLed.classList.remove('mic-on');
   camLabel.textContent = 'ENABLE CAMERA';
-  camPip.classList.add('hidden');
+  camSb.classList.remove('visible');
+  clearCanvas();
   pipRadius.textContent = '—';
+  pipStatusTxt.textContent = 'IDLE';
+  pipStatus.classList.remove('locked');
+  fingerDot.classList.add('hidden');
   radiusSlider.disabled = false;
   fingerSm.init = false;
 }
@@ -683,25 +745,13 @@ function onHandResults(results) {
   camCtx.scale(-1, 1);
   camCtx.drawImage(results.image, -cw, 0, cw, ch);
   camCtx.restore();
-  camCtx.fillStyle = 'rgba(0,0,0,0.35)';
+  camCtx.fillStyle = 'rgba(0,0,0,0.25)';
   camCtx.fillRect(0, 0, cw, ch);
-
-  // pip center (represents art canvas center)
-  const pcx = cw / 2, pcy = ch / 2;
-
-  // center crosshair + circle
-  camCtx.strokeStyle = 'rgba(66,245,158,0.45)';
-  camCtx.lineWidth = 1;
-  camCtx.beginPath();
-  camCtx.arc(pcx, pcy, 10, 0, Math.PI * 2);
-  camCtx.moveTo(pcx - 14, pcy); camCtx.lineTo(pcx + 14, pcy);
-  camCtx.moveTo(pcx, pcy - 14); camCtx.lineTo(pcx, pcy + 14);
-  camCtx.stroke();
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
 
-    // draw hand skeleton (mirrored)
+    // hand skeleton
     camCtx.strokeStyle = 'rgba(66,245,158,0.55)';
     camCtx.lineWidth = 1.5;
     camCtx.beginPath();
@@ -712,12 +762,13 @@ function onHandResults(results) {
     }
     camCtx.stroke();
 
-    // landmark joints
-    camCtx.fillStyle = 'rgba(66,245,158,0.8)';
+    // joints
+    camCtx.fillStyle = 'rgba(66,245,158,0.75)';
     for (let i = 0; i < lm.length; i++) {
+      if (i === 8) continue;
       const p = lm[i];
       camCtx.beginPath();
-      camCtx.arc((1 - p.x) * cw, p.y * ch, i === 8 ? 0 : 2, 0, Math.PI * 2);
+      camCtx.arc((1 - p.x) * cw, p.y * ch, 2, 0, Math.PI * 2);
       camCtx.fill();
     }
 
@@ -725,48 +776,45 @@ function onHandResults(results) {
     const tx = (1 - tip.x) * cw;
     const ty = tip.y * ch;
 
-    // dashed line from center to fingertip (in pip)
-    camCtx.save();
-    camCtx.setLineDash([5, 4]);
-    camCtx.strokeStyle = 'rgba(66,245,158,0.6)';
-    camCtx.lineWidth = 1;
-    camCtx.beginPath();
-    camCtx.moveTo(pcx, pcy); camCtx.lineTo(tx, ty);
-    camCtx.stroke();
-    camCtx.restore();
-
-    // fingertip marker
+    // fingertip marker in pip
     camCtx.strokeStyle = '#42f59e';
     camCtx.lineWidth = 2;
     camCtx.beginPath(); camCtx.arc(tx, ty, 9, 0, Math.PI * 2); camCtx.stroke();
     camCtx.fillStyle = '#42f59e';
     camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
-    camCtx.shadowBlur = 12; camCtx.shadowColor = '#42f59e';
-    camCtx.beginPath(); camCtx.arc(tx, ty, 4, 0, Math.PI * 2); camCtx.fill();
-    camCtx.shadowBlur = 0;
 
-    // smooth fingertip in pip space
-    if (!fingerSm.init) { fingerSm.x = tx; fingerSm.y = ty; fingerSm.init = true; }
-    fingerSm.x += (tx - fingerSm.x) * 0.35;
-    fingerSm.y += (ty - fingerSm.y) * 0.35;
+    // normalized offset from cam center, in [-0.5..0.5]
+    const nx = (1 - tip.x) - 0.5;
+    const ny = tip.y - 0.5;
 
-    // map pip-space offset to art-canvas radius
-    // (pip diag ↔ art-canvas diag) so reach-to-edge maps to reach-to-edge
-    const pipDiag = Math.sqrt(cw * cw + ch * ch) / 2;
-    const artDiag = Math.sqrt(W * W + H * H) / 2;
-    const dx = fingerSm.x - pcx;
-    const dy = fingerSm.y - pcy;
-    const pipDist = Math.sqrt(dx * dx + dy * dy);
-    const artDist = (pipDist / pipDiag) * artDiag;
-    const r = Math.max(50, Math.min(2000, artDist * 2));
+    if (!fingerSm.init) { fingerSm.x = nx; fingerSm.y = ny; fingerSm.init = true; }
+    fingerSm.x += (nx - fingerSm.x) * 0.4;
+    fingerSm.y += (ny - fingerSm.y) * 0.4;
+
+    // map to art canvas — place dot in visible area, radius from center distance
+    const c = getCenter();
+    const visW = W - c.left - c.right;
+    const visH = H;
+    const dotX = c.x + fingerSm.x * visW;
+    const dotY = c.y + fingerSm.y * visH;
+    const dist = Math.sqrt(Math.pow(dotX - c.x, 2) + Math.pow(dotY - c.y, 2));
+    const r = Math.max(50, Math.min(2000, dist * 2));
+
     P.radius = r;
     radiusSlider.value = r;
     radiusVal.textContent = Math.round(r);
     pipRadius.textContent = Math.round(r);
-    pipStatus.textContent = 'LOCKED';
+    pipStatusTxt.textContent = 'LOCKED';
+    pipStatus.classList.add('locked');
+
+    fingerDot.classList.remove('hidden');
+    fingerDot.style.left = dotX + 'px';
+    fingerDot.style.top  = dotY + 'px';
   } else {
     fingerSm.init = false;
-    pipStatus.textContent = 'SEARCHING…';
+    pipStatusTxt.textContent = 'SEARCHING';
+    pipStatus.classList.remove('locked');
+    fingerDot.classList.add('hidden');
   }
 }
 
@@ -823,9 +871,11 @@ const panel = document.getElementById('panel');
 const openBtn = document.getElementById('open-btn');
 document.getElementById('close-btn').addEventListener('click', () => {
   panel.classList.add('hidden'); openBtn.classList.add('visible');
+  clearCanvas();
 });
 openBtn.addEventListener('click', () => {
   panel.classList.remove('hidden'); openBtn.classList.remove('visible');
+  clearCanvas();
 });
 
 // ══ ACTIONS ═════════════════════════════════════════════════════════════════
