@@ -183,7 +183,7 @@
     #cam-sb.visible { opacity:1; pointer-events:auto; transform: translateY(0); }
     .cam-sb-inner { padding:12px; display:flex; flex-direction:column; gap:10px; }
     .cam-video-box {
-      position:relative; width:100%; aspect-ratio: 4/3;
+      position:relative; width:100%; aspect-ratio: 16/9;
       border:1px solid var(--steel-3); border-radius:2px;
       overflow:hidden; background: var(--steel-0);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.6);
@@ -245,7 +245,7 @@
 <aside id="cam-sb">
   <div class="cam-sb-inner">
     <div class="cam-video-box">
-      <canvas id="cam-canvas" width="480" height="360"></canvas>
+      <canvas id="cam-canvas" width="480" height="270"></canvas>
     </div>
     <div class="cam-row" id="pip-status"><span><span class="status-dot"></span><span class="txt">IDLE</span></span><span class="val" id="pip-radius">—</span></div>
   </div>
@@ -503,11 +503,12 @@ function draw(ts) {
   const cA = rgbStr(lerpRGB(priRGB, secRGB, tMix));
   const cB = rgbStr(lerpRGB(secRGB, priRGB, tMix));
 
-  // ── fade trail: keep ~3 full rotations of stamps visible
+  // ── fade trail: keep ~3 rings visible, fade to near-black after
   const rps = Math.abs(P.rot);
   if (rps > 0.001) {
     const framesPer3Rot = (360 * 3) / rps;
-    const fadeA = 1 - Math.pow(0.035, 1 / framesPer3Rot);
+    // stamp at age-3-rotations is ~1.5% — cleanly gone, so only the freshest 3 rings read
+    const fadeA = 1 - Math.pow(0.015, 1 / framesPer3Rot);
     const bgRGB = parseHex(P.bg);
     ctx.fillStyle = `rgba(${bgRGB[0]},${bgRGB[1]},${bgRGB[2]},${fadeA})`;
     ctx.fillRect(0, 0, W, H);
