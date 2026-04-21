@@ -554,11 +554,9 @@ function draw(ts) {
     const t = i / (stops - 1);
     const base = (i % 2 === 0) ? priH : secH;
     // hue rotates over time and radially across stops → colour ripples outward
-    const h = ((base[0] + hueDrift + t * 220) % 360 + 360) % 360;
-    const s = Math.max(0, Math.min(100, base[1]));
     const lWave = Math.sin(frameCount * 0.04 + t * 5 + i * 0.9) * 14;
-    const l = Math.max(6, Math.min(96, base[2] + wobble + lWave + react * 8));
-    grad.addColorStop(t, `hsl(${h.toFixed(1)},${s.toFixed(1)}%,${l.toFixed(1)}%)`);
+    const l = Math.max(4, Math.min(96, base[2] + wobble + lWave + react * 8));
+    grad.addColorStop(t, `hsl(0,0%,${l.toFixed(1)}%)`);
   }
   ctx.fillStyle = grad;
 
