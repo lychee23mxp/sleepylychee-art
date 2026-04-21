@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" name="viewport" content="width=device-width">
+  <base href="https://uglyph.app/">
+  <title>UGLYPH — 手势控制</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+  <!-- Original uglyph.app dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.2/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.dom.min.js"></script>
+  <script src="https://unpkg.com/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
+
+  <!-- MediaPipe Hands (landmark detection) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+
+  <style>
+    /* ── Gesture panel ─────────────────────────────────────────────── */
+    #gesture-panel {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    #gesture-panel > * { pointer-events: auto; }
+
+    #camera-wrap {
+      position: relative;
+      width: 190px;
+      height: 143px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      background: #0a0a0a;
+    }
+
+    #camera-feed {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    #lm-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* canvas is drawn mirrored to match the CSS-flipped video */
+    }
+
+    #gesture-name {
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      transition: color 0.3s;
+    }
+
+    #gesture-guide {
+      background: rgba(0,0,0,0.78);
+      color: #b0b0b0;
+      padding: 8px 11px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      line-height: 1.7;
+    }
+
+    #gesture-guide .g-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #gesture-guide .g-emoji { font-size: 15px; width: 22px; text-align: center; }
+
+    #gesture-toggle-btn {
+      background: rgba(20,20,20,0.88);
+      color: #ccc;
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 3px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #gesture-toggle-btn:hover { background: rgba(50,50,50,0.9); color: #fff; }
+
+    /* ── Hand cursor ───────────────────────────────────────────────── */
+    #hand-cursor {
+      position: fixed;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.75);
+      background: rgba(255,255,255,0.08);
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: width 0.1s, height 0.1s, background 0.1s, border-color 0.15s;
+      display: none;
+    }
+
+    #hand-cursor.pressing {
+      width: 18px;
+      height: 18px;
+      background: rgba(255,255,255,0.35);
+    }
+
+    #hand-cursor.repulse-mode {
+      border-color: rgba(255,90,90,0.85);
+    }
+
+    /* ── Gesture flash overlay ─────────────────────────────────────── */
+    #gesture-flash {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 52px;
+      pointer-events: none;
+      z-index: 9997;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    #gesture-flash.show {
+      opacity: 1;
+      transition: opacity 0s;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- uglyph.app original structure -->
+  <div id="ui-container"></div>
+  <div id="canvas-container">
+    <div id="render-overlay"></div>
+  </div>
+
+  <!-- Gesture panel (top-right) -->
+  <div id="gesture-panel">
+    <div id="camera-wrap">
+      <video id="camera-feed" autoplay muted playsinline></video>
+      <canvas id="lm-canvas"></canvas>
+    </div>
+    <div id="gesture-name">✋ Starting…</div>
+    <div id="gesture-guide">
+      <div class="g-row"><span class="g-emoji">👆</span><span>Point  → 移动光标</span></div>
+      <div class="g-row"><span class="g-emoji">🤚</span><span>Open   → 吸引</span></div>
+      <div class="g-row"><span class="g-emoji">✌️</span><span>Peace  → 排斥</span></div>
+      <div class="g-row"><span class="g-emoji">✊</span><span>Fist   → 爆炸</span></div>
+      <div class="g-row"><span class="g-emoji">👍</span><span>Thumb↑ → 播放/暂停</span></div>
+      <div class="g-row"><span class="g-emoji">🤌</span><span>Pinch  → 换色</span></div>
+    </div>
+    <button id="gesture-toggle-btn">隐藏面板 G</button>
+  </div>
+
+  <!-- Hand cursor dot -->
+  <div id="hand-cursor"></div>
+
+  <!-- Flash emoji for one-shot actions -->
+  <div id="gesture-flash"></div>
+
+  <!-- ── uglyph main script (loaded from uglyph.app via <base>) ─── -->
+  <script src="uglyph.js"></script>
+
+  <!-- ── Gesture Control ────────────────────────────────────────── -->
+  <script>
+  (function () {
+    'use strict';
+
+    // ── DOM refs ──────────────────────────────────────────────────
+    const video      = document.getElementById('camera-feed');
+    const lmCanvas   = document.getElementById('lm-canvas');
+    const lmCtx      = lmCanvas.getContext('2d');
+    const nameEl     = document.getElementById('gesture-name');
+    const handCursor = document.getElementById('hand-cursor');
+    const flashEl    = document.getElementById('gesture-flash');
+    const toggleBtn  = document.getElementById('gesture-toggle-btn');
+
+    // ── State ─────────────────────────────────────────────────────
+    let gestureActive  = true;
+    let currentGesture = 'NONE';
+    let prevGesture    = 'NONE';
+    let smoothX = window.innerWidth  / 2;
+    let smoothY = window.innerHeight / 2;
+    let isMouseDown    = false;
+    let lastTrigger    = 0;
+    const COOLDOWN     = 900;   // ms between one-shot triggers
+    const LERP         = 0.22;  // cursor smoothing
+
+    // ── Gesture classification ────────────────────────────────────
+    // MediaPipe hand landmark indices (normalized x,y,z ∈ [0,1])
+    //   0  = wrist
+    //   4  = thumb tip     5  = index MCP   6  = index PIP   8  = index tip
+    //   9  = middle MCP   10  = middle PIP  12 = middle tip
+    //  13  = ring MCP     14  = ring PIP    16 = ring tip
+    //  17  = pinky MCP    18  = pinky PIP   20 = pinky tip
+    function classify(lm) {
+      const wrist    = lm[0];
+      const thumbTip = lm[4];
+      const thumbIP  = lm[3];
+      const idxMCP   = lm[5];
+      const idxPIP   = lm[6];
+      const idxTip   = lm[8];
+      const midPIP   = lm[10];
+      const midTip   = lm[12];
+      const rngPIP   = lm[14];
+      const rngTip   = lm[16];
+      const pkyPIP   = lm[18];
+      const pkyTip   = lm[20];
+
+      // Is hand upright? (wrist below knuckle line in image coords)
+      const upright = wrist.y > idxMCP.y;
+
+      function ext(tip, pip) {
+        return upright ? tip.y < pip.y : tip.y > pip.y;
+      }
+
+      const idxE = ext(idxTip, idxPIP);
+      const midE = ext(midTip, midPIP);
+      const rngE = ext(rngTip, rngPIP);
+      const pkyE = ext(pkyTip, pkyPIP);
+
+      // Thumb-up: thumb tip well above wrist, other fingers closed
+      const thumbUpY = upright
+        ? (thumbTip.y < wrist.y - 0.18)
+        : (thumbTip.y > wrist.y + 0.18);
+
+      // Pinch: thumb tip close to index tip (relative to hand size)
+      const handSize  = Math.hypot(wrist.x - idxMCP.x, wrist.y - idxMCP.y) || 0.001;
+      const pinchDist = Math.hypot(thumbTip.x - idxTip.x, thumbTip.y - idxTip.y);
+      const isPinch   = pinchDist < handSize * 0.65;
+
+      if (isPinch && !midE && !rngE && !pkyE) return 'PINCH';
+      if (!idxE && !midE && !rngE && !pkyE)   return 'FIST';
+      if (idxE && midE && rngE && pkyE)        return 'OPEN_PALM';
+      if (idxE && !midE && !rngE && !pkyE)     return 'POINT';
+      if (idxE && midE && !rngE && !pkyE)      return 'VICTORY';
+      if (thumbUpY && !idxE && !midE && !rngE && !pkyE) return 'THUMB_UP';
+      return 'NONE';
+    }
+
+    // ── Screen position from landmark (index fingertip) ───────────
+    function screenPos(lm) {
+      const tip = lm[8]; // index fingertip
+      // Flip x because camera is front-facing (displayed mirrored)
+      return {
+        x: (1 - tip.x) * window.innerWidth,
+        y: tip.y * window.innerHeight
+      };
+    }
+
+    // ── Synthetic mouse events ────────────────────────────────────
+    function getCanvas() { return document.querySelector('canvas'); }
+
+    function mouseMove(x, y) {
+      const c = getCanvas();
+      if (!c) return;
+      c.dispatchEvent(new MouseEvent('mousemove', {
+        clientX: x, clientY: y, bubbles: true, cancelable: true
+      }));
+    }
+
+    function mouseDown(x, y) {
+      if (isMouseDown) return;
+      isMouseDown = true;
+      const c = getCanvas();
+      if (!c) return;
+      c.dispatchEvent(new MouseEvent('mousedown', {
+        clientX: x, clientY: y, bubbles: true, cancelable: true
+      }));
+    }
+
+    function mouseUp() {
+      if (!isMouseDown) return;
+      isMouseDown = false;
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    }
+
+    // ── One-shot actions ──────────────────────────────────────────
+    const ACTIONS = {
+      FIST:     () => { window.explode?.();                              flashAction('💥'); },
+      THUMB_UP: () => { window.toggleSmoothing?.();                     flashAction('⏯');  },
+      PINCH:    () => { window.recolor?.(); window.updateColorSquares?.(); flashAction('🎨'); },
+    };
+
+    function flashAction(emoji) {
+      flashEl.textContent = emoji;
+      flashEl.classList.add('show');
+      setTimeout(() => flashEl.classList.remove('show'), 600);
+    }
+
+    function maybeOneShot(gesture) {
+      const now = Date.now();
+      if (gesture === prevGesture) return; // only on first frame of gesture
+      if (now - lastTrigger < COOLDOWN) return;
+      const action = ACTIONS[gesture];
+      if (action) { action(); lastTrigger = now; }
+    }
+
+    // ── Apply gesture ─────────────────────────────────────────────
+    const LABELS = {
+      OPEN_PALM: '🤚 吸引 Attract',
+      VICTORY:   '✌️ 排斥 Repulse',
+      POINT:     '👆 光标 Cursor',
+      FIST:      '✊ 爆炸 Explode',
+      THUMB_UP:  '👍 播放/暂停',
+      PINCH:     '🤌 换色 Recolor',
+      NONE:      '— 等待手势',
+    };
+
+    function applyGesture(gesture, rawX, rawY) {
+      // Smooth cursor
+      smoothX += (rawX - smoothX) * LERP;
+      smoothY += (rawY - smoothY) * LERP;
+
+      mouseMove(smoothX, smoothY);
+
+      // Update hand cursor visual
+      handCursor.style.left = smoothX + 'px';
+      handCursor.style.top  = smoothY + 'px';
+      handCursor.style.display = 'block';
+
+      switch (gesture) {
+        case 'OPEN_PALM':
+          window.setBrushMode?.('attract');
+          mouseDown(smoothX, smoothY);
+          handCursor.classList.add('pressing');
+          handCursor.classList.remove('repulse-mode');
+          break;
+
+        case 'VICTORY':
+          window.setBrushMode?.('repulse');
+          mouseDown(smoothX, smoothY);
+          handCursor.classList.add('pressing', 'repulse-mode');
+          break;
+
+        case 'POINT':
+          mouseUp();
+          handCursor.classList.remove('pressing', 'repulse-mode');
+          break;
+
+        case 'FIST':
+        case 'THUMB_UP':
+        case 'PINCH':
+          mouseUp();
+          handCursor.classList.remove('pressing', 'repulse-mode');
+          maybeOneShot(gesture);
+          break;
+
+        default:
+          mouseUp();
+          handCursor.classList.remove('pressing', 'repulse-mode');
+          break;
+      }
+
+      nameEl.textContent = LABELS[gesture] ?? gesture;
+    }
+
+    // ── Draw hand skeleton on landmark canvas ─────────────────────
+    const CONNECTIONS = [
+      [0,1],[1,2],[2,3],[3,4],
+      [0,5],[5,6],[6,7],[7,8],
+      [0,9],[9,10],[10,11],[11,12],
+      [0,13],[13,14],[14,15],[15,16],
+      [0,17],[17,18],[18,19],[19,20],
+      [5,9],[9,13],[13,17],
+    ];
+
+    function drawSkeleton(lm) {
+      const W = lmCanvas.width;
+      const H = lmCanvas.height;
+      lmCtx.clearRect(0, 0, W, H);
+      if (!lm) return;
+
+      // px() maps landmark to canvas pixels.
+      // The canvas has CSS transform:scaleX(-1) via the video underneath,
+      // but the canvas element itself is NOT CSS-transformed — we draw
+      // mirrored coordinates so it visually aligns with the mirrored video.
+      const px = (l) => ({ x: (1 - l.x) * W, y: l.y * H });
+
+      // Connections
+      lmCtx.strokeStyle = 'rgba(255,255,255,0.45)';
+      lmCtx.lineWidth = 1.8;
+      for (const [a, b] of CONNECTIONS) {
+        const pa = px(lm[a]), pb = px(lm[b]);
+        lmCtx.beginPath();
+        lmCtx.moveTo(pa.x, pa.y);
+        lmCtx.lineTo(pb.x, pb.y);
+        lmCtx.stroke();
+      }
+
+      // Joints
+      lmCtx.fillStyle = 'rgba(255,255,255,0.7)';
+      for (const l of lm) {
+        const p = px(l);
+        lmCtx.beginPath();
+        lmCtx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+        lmCtx.fill();
+      }
+
+      // Fingertips in orange
+      lmCtx.fillStyle = 'rgba(255,140,60,0.95)';
+      for (const ti of [4, 8, 12, 16, 20]) {
+        const p = px(lm[ti]);
+        lmCtx.beginPath();
+        lmCtx.arc(p.x, p.y, 4.5, 0, Math.PI * 2);
+        lmCtx.fill();
+      }
+    }
+
+    // ── MediaPipe Hands setup ─────────────────────────────────────
+    let handsModel = null;
+
+    async function initGesture() {
+      // ① Camera
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+        });
+      } catch (err) {
+        nameEl.textContent = '❌ 无摄像头';
+        console.error('Camera error:', err);
+        return;
+      }
+
+      video.srcObject = stream;
+      await new Promise(res => { video.onloadedmetadata = res; });
+      await video.play();
+
+      // Resize landmark canvas to match video element
+      const rect = document.getElementById('camera-wrap').getBoundingClientRect();
+      lmCanvas.width  = rect.width  * devicePixelRatio;
+      lmCanvas.height = rect.height * devicePixelRatio;
+      lmCanvas.style.width  = rect.width  + 'px';
+      lmCanvas.style.height = rect.height + 'px';
+      lmCtx.scale(devicePixelRatio, devicePixelRatio);
+
+      nameEl.textContent = '✋ 加载模型…';
+
+      // ② MediaPipe Hands model
+      handsModel = new Hands({
+        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`
+      });
+
+      handsModel.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.62,
+        minTrackingConfidence: 0.52,
+      });
+
+      handsModel.onResults((results) => {
+        if (!gestureActive) return;
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          const lm = results.multiHandLandmarks[0];
+
+          prevGesture    = currentGesture;
+          currentGesture = classify(lm);
+
+          const pos = screenPos(lm);
+          applyGesture(currentGesture, pos.x, pos.y);
+          drawSkeleton(lm);
+        } else {
+          // No hand
+          if (currentGesture !== 'NONE') {
+            prevGesture    = currentGesture;
+            currentGesture = 'NONE';
+            mouseUp();
+            handCursor.style.display = 'none';
+            nameEl.textContent = '— 未检测到手';
+          }
+          drawSkeleton(null);
+        }
+      });
+
+      nameEl.textContent = '✋ 手势就绪';
+
+      // ③ Detection loop (~15–20 fps is plenty for hands)
+      let lastSend = 0;
+      async function detectionLoop(ts) {
+        if (gestureActive && handsModel && ts - lastSend > 50) {
+          lastSend = ts;
+          try { await handsModel.send({ image: video }); } catch (_) {}
+        }
+        requestAnimationFrame(detectionLoop);
+      }
+      requestAnimationFrame(detectionLoop);
+    }
+
+    // ── Toggle panel visibility ───────────────────────────────────
+    let panelVisible = true;
+    const guide    = document.getElementById('gesture-guide');
+
+    toggleBtn.addEventListener('click', () => {
+      panelVisible = !panelVisible;
+      gestureActive = panelVisible;
+
+      const cameraWrap = document.getElementById('camera-wrap');
+      cameraWrap.style.display = panelVisible ? '' : 'none';
+      nameEl.style.display     = panelVisible ? '' : 'none';
+      guide.style.display      = panelVisible ? '' : 'none';
+      toggleBtn.textContent    = panelVisible ? '隐藏面板 G' : '显示面板 G';
+
+      if (!panelVisible) {
+        mouseUp();
+        handCursor.style.display = 'none';
+      }
+    });
+
+    // 'G' key also toggles
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'g' || e.key === 'G') &&
+          !document.activeElement?.classList.contains('text-input')) {
+        toggleBtn.click();
+      }
+    });
+
+    // ── Boot ──────────────────────────────────────────────────────
+    // Wait a tick so uglyph.js finishes setting up p5 and the canvas
+    window.addEventListener('load', () => setTimeout(initGesture, 600));
+
+  })();
+  </script>
+</body>
+</html>
