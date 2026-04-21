@@ -353,15 +353,15 @@
   <div class="section-label">Palette</div>
 
   <div class="presets" id="presets">
+    <div class="preset" data-pri="#f0f0f4" data-sec="#16161c" data-bg="#000000" style="background: linear-gradient(90deg, #f0f0f4, #16161c);" title="Chrome"></div>
     <div class="preset" data-pri="#f06ec3" data-sec="#3cdce0" data-bg="#050216" style="background: linear-gradient(90deg, #f06ec3, #3cdce0);" title="Neon"></div>
     <div class="preset" data-pri="#ff5e62" data-sec="#ffb347" data-bg="#1a0404" style="background: linear-gradient(90deg, #ff5e62, #ffb347);" title="Sunset"></div>
     <div class="preset" data-pri="#9b59f6" data-sec="#2ee6a0" data-bg="#080214" style="background: linear-gradient(90deg, #9b59f6, #2ee6a0);" title="Prism"></div>
-    <div class="preset" data-pri="#f0f0f4" data-sec="#16161c" data-bg="#000000" style="background: linear-gradient(90deg, #f0f0f4, #16161c);" title="Chrome"></div>
   </div>
 
   <div class="colors">
-    <div class="color-item"><label>Primary</label><div class="swatch-wrap"><input type="color" id="c-pri" value="#f06ec3"></div></div>
-    <div class="color-item"><label>Secondary</label><div class="swatch-wrap"><input type="color" id="c-sec" value="#3cdce0"></div></div>
+    <div class="color-item"><label>Primary</label><div class="swatch-wrap"><input type="color" id="c-pri" value="#f0f0f4"></div></div>
+    <div class="color-item"><label>Secondary</label><div class="swatch-wrap"><input type="color" id="c-sec" value="#16161c"></div></div>
     <div class="color-item"><label>Background</label><div class="swatch-wrap"><input type="color" id="c-bg" value="#000000"></div></div>
   </div>
 
@@ -407,7 +407,7 @@ const P = {
   kick:  0.5,   // persistent rotation jump on beat
   sweep: 0.4,   // gradient orbit jump on beat
   sens: 1.3, react: 0.7,
-  pri: '#f06ec3', sec: '#3cdce0', bg: '#000000',
+  pri: '#f0f0f4', sec: '#16161c', bg: '#000000',
 };
 
 let frameCount = 0;
@@ -556,7 +556,8 @@ function draw(ts) {
     const base = (i % 2 === 0) ? priH : secH;
     // hue rotates over time and radially across stops → colour ripples outward
     const h = ((base[0] + hueDrift + t * 220) % 360 + 360) % 360;
-    const s = Math.max(40, Math.min(100, base[1] + 15));
+    const shimmer = (Math.sin(frameCount * 0.03 + t * 4 + i * 0.7) * 0.5 + 0.5) * 40;
+    const s = Math.max(0, Math.min(100, base[1] + shimmer));
     const l = Math.max(10, Math.min(92, base[2] + wobble + react * 8));
     grad.addColorStop(t, `hsl(${h.toFixed(1)},${s.toFixed(1)}%,${l.toFixed(1)}%)`);
   }
@@ -664,16 +665,6 @@ function getCenter() {
   return { x: left + (W - left - right) / 2, y: H / 2, left, right };
 }
 
-// hand skeleton connections (MediaPipe Hands)
-const HAND_CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],        // thumb
-  [0,5],[5,6],[6,7],[7,8],        // index
-  [5,9],[9,10],[10,11],[11,12],   // middle
-  [9,13],[13,14],[14,15],[15,16], // ring
-  [13,17],[17,18],[18,19],[19,20],// pinky
-  [0,17],                          // palm
-];
-
 let handsOn = false;
 let video = null;
 let handsModel = null;
@@ -776,37 +767,8 @@ function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
 
-    // hand skeleton
-    camCtx.strokeStyle = 'rgba(66,245,158,0.55)';
-    camCtx.lineWidth = 1.5;
-    camCtx.beginPath();
-    for (const [a, b] of HAND_CONNECTIONS) {
-      const pa = toCam(lm[a].x, lm[a].y);
-      const pb = toCam(lm[b].x, lm[b].y);
-      camCtx.moveTo(pa.x, pa.y);
-      camCtx.lineTo(pb.x, pb.y);
-    }
-    camCtx.stroke();
-
-    // joints
-    camCtx.fillStyle = 'rgba(66,245,158,0.75)';
-    for (let i = 0; i < lm.length; i++) {
-      if (i === 8) continue;
-      const p = toCam(lm[i].x, lm[i].y);
-      camCtx.beginPath();
-      camCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-      camCtx.fill();
-    }
-
     const tipCam = toCam(lm[8].x, lm[8].y);
     const tx = tipCam.x, ty = tipCam.y;
-
-    // fingertip marker in pip
-    camCtx.strokeStyle = '#42f59e';
-    camCtx.lineWidth = 2;
-    camCtx.beginPath(); camCtx.arc(tx, ty, 9, 0, Math.PI * 2); camCtx.stroke();
-    camCtx.fillStyle = '#42f59e';
-    camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
 
     // normalized offset in cam canvas (cropped view), in [-0.5..0.5]
     const nx = (tx / cw) - 0.5;
