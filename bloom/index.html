@@ -503,12 +503,13 @@ function draw(ts) {
   const cA = rgbStr(lerpRGB(priRGB, secRGB, tMix));
   const cB = rgbStr(lerpRGB(secRGB, priRGB, tMix));
 
-  // ── fade trail: keep ~3 rings visible, fade to near-black after
+  // ── fade trail: 3 full rotations clearly visible, then gradual fade-out
   const rps = Math.abs(P.rot);
   if (rps > 0.001) {
     const framesPer3Rot = (360 * 3) / rps;
-    // stamp at age-3-rotations is ~1.5% — cleanly gone, so only the freshest 3 rings read
-    const fadeA = 1 - Math.pow(0.015, 1 / framesPer3Rot);
+    // at the 3-rotation mark a stamp is still ~25% visible; then it decays further
+    // → rot1 ≈ 63%, rot2 ≈ 40%, rot3 ≈ 25%, rot4 ≈ 16%, rot5 ≈ 10%, rot6 ≈ 6%
+    const fadeA = 1 - Math.pow(0.25, 1 / framesPer3Rot);
     const bgRGB = parseHex(P.bg);
     ctx.fillStyle = `rgba(${bgRGB[0]},${bgRGB[1]},${bgRGB[2]},${fadeA})`;
     ctx.fillRect(0, 0, W, H);
@@ -724,28 +725,24 @@ function onHandResults(results) {
   const vw = (video && video.videoWidth)  || results.image.width  || cw;
   const vh = (video && video.videoHeight) || results.image.height || ch;
 
-  // contain-fit (letterbox) — keeps full video visible, no stretching or cropping
+  // cover-fit source rect — fill the box exactly, preserve aspect (crop a sliver if needed)
   const sAR = vw / vh, dAR = cw / ch;
-  let dx = 0, dy = 0, dW = cw, dH = ch;
-  if (sAR > dAR) { dH = cw / sAR; dy = (ch - dH) / 2; }
-  else            { dW = ch * sAR; dx = (cw - dW) / 2; }
+  let sx = 0, sy = 0, sW = vw, sH = vh;
+  if (sAR > dAR) { sW = vh * dAR; sx = (vw - sW) / 2; }
+  else            { sH = vw / dAR; sy = (vh - sH) / 2; }
 
-  // background fill for letterbox bars
-  camCtx.fillStyle = '#0b0b0f';
-  camCtx.fillRect(0, 0, cw, ch);
-
-  // mirrored contain draw (full video, preserved aspect)
+  // mirrored cover draw — fills the box, no stretching, no black bars
   camCtx.save();
   camCtx.scale(-1, 1);
-  camCtx.drawImage(results.image, 0, 0, vw, vh, -(dx + dW), dy, dW, dH);
+  camCtx.drawImage(results.image, sx, sy, sW, sH, -cw, 0, cw, ch);
   camCtx.restore();
   camCtx.fillStyle = 'rgba(0,0,0,0.22)';
-  camCtx.fillRect(dx, dy, dW, dH);
+  camCtx.fillRect(0, 0, cw, ch);
 
-  // map normalized landmark → letterboxed + mirrored canvas coords
+  // map normalized landmark → cropped + mirrored canvas coords
   const toCam = (nx, ny) => ({
-    x: cw - (dx + nx * dW),
-    y: dy + ny * dH,
+    x: cw - ((nx * vw - sx) / sW) * cw,
+    y: ((ny * vh - sy) / sH) * ch,
   });
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
