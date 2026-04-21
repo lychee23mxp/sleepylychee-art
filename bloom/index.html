@@ -662,6 +662,16 @@ function getCenter() {
   return { x: left + (W - left - right) / 2, y: H / 2, left, right };
 }
 
+// hand skeleton connections (MediaPipe Hands)
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17],
+];
+
 let handsOn = false;
 let video = null;
 let handsModel = null;
@@ -764,14 +774,36 @@ function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
 
+    // hand skeleton (silver)
+    camCtx.strokeStyle = 'rgba(240,240,244,0.75)';
+    camCtx.lineWidth = 1.5;
+    camCtx.beginPath();
+    for (const [a, b] of HAND_CONNECTIONS) {
+      const pa = toCam(lm[a].x, lm[a].y);
+      const pb = toCam(lm[b].x, lm[b].y);
+      camCtx.moveTo(pa.x, pa.y);
+      camCtx.lineTo(pb.x, pb.y);
+    }
+    camCtx.stroke();
+
+    // joints
+    camCtx.fillStyle = 'rgba(240,240,244,0.85)';
+    for (let i = 0; i < lm.length; i++) {
+      if (i === 8) continue;
+      const p = toCam(lm[i].x, lm[i].y);
+      camCtx.beginPath();
+      camCtx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      camCtx.fill();
+    }
+
     const tipCam = toCam(lm[8].x, lm[8].y);
     const tx = tipCam.x, ty = tipCam.y;
 
-    // subtle fingertip marker (silver ring)
-    camCtx.strokeStyle = 'rgba(240,240,244,0.9)';
+    // fingertip marker
+    camCtx.strokeStyle = 'rgba(255,255,255,0.95)';
     camCtx.lineWidth = 2;
     camCtx.beginPath(); camCtx.arc(tx, ty, 10, 0, Math.PI * 2); camCtx.stroke();
-    camCtx.fillStyle = 'rgba(255,255,255,0.95)';
+    camCtx.fillStyle = '#ffffff';
     camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
 
     // normalized offset in cam canvas (cropped view), in [-0.5..0.5]
