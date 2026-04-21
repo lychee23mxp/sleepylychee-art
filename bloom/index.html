@@ -200,8 +200,8 @@
 
     #finger-dot {
       position:fixed; width:14px; height:14px;
-      background:#42f59e; border-radius:50%;
-      box-shadow: 0 0 14px #42f59e, 0 0 4px #fff;
+      background:#f0f0f4; border-radius:50%;
+      box-shadow: 0 0 14px rgba(240,240,244,0.85), 0 0 4px #fff;
       transform: translate(-50%, -50%);
       pointer-events:none; z-index:12;
       transition: opacity 0.18s;
@@ -766,6 +766,13 @@ function onHandResults(results) {
 
     const tipCam = toCam(lm[8].x, lm[8].y);
     const tx = tipCam.x, ty = tipCam.y;
+
+    // subtle fingertip marker (silver ring)
+    camCtx.strokeStyle = 'rgba(240,240,244,0.9)';
+    camCtx.lineWidth = 2;
+    camCtx.beginPath(); camCtx.arc(tx, ty, 10, 0, Math.PI * 2); camCtx.stroke();
+    camCtx.fillStyle = 'rgba(255,255,255,0.95)';
+    camCtx.beginPath(); camCtx.arc(tx, ty, 3, 0, Math.PI * 2); camCtx.fill();
 
     // normalized offset in cam canvas (cropped view), in [-0.5..0.5]
     const nx = (tx / cw) - 0.5;
