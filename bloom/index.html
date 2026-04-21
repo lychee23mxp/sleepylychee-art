@@ -412,6 +412,7 @@ let frameCount = 0;
 let gAngle = 0;         // gradient centre orbit angle
 let rotDeg = 0;         // running rotation in degrees (accumulated)
 let time = 0, lastTs = null;
+let fadeCounter = 0;
 
 // beat state
 let beatPhase = 0, lastBeatPhase = 0, beatEnv = 0;
@@ -503,16 +504,22 @@ function draw(ts) {
   const cA = rgbStr(lerpRGB(priRGB, secRGB, tMix));
   const cB = rgbStr(lerpRGB(secRGB, priRGB, tMix));
 
-  // ── fade trail: 3 full rotations clearly visible, then gradual fade-out
-  const rps = Math.abs(P.rot);
-  if (rps > 0.001) {
-    const framesPer3Rot = (360 * 3) / rps;
-    // at the 3-rotation mark a stamp is still ~25% visible; then it decays further
-    // → rot1 ≈ 63%, rot2 ≈ 40%, rot3 ≈ 25%, rot4 ≈ 16%, rot5 ≈ 10%, rot6 ≈ 6%
-    const fadeA = 1 - Math.pow(0.25, 1 / framesPer3Rot);
-    const bgRGB = parseHex(P.bg);
-    ctx.fillStyle = `rgba(${bgRGB[0]},${bgRGB[1]},${bgRGB[2]},${fadeA})`;
-    ctx.fillRect(0, 0, W, H);
+  // ── fade trail: periodic strong fade (per-frame alpha would be < 8-bit rounding
+  //    threshold and Zeno out). Fade once every 6 frames with an alpha that's
+  //    actually large enough to decrement pixel values, tuned so ~25–30% of a
+  //    stamp remains at the 3-full-rotation mark and then dissolves.
+  if (++fadeCounter >= 6) {
+    fadeCounter = 0;
+    const rps = Math.abs(P.rot);
+    if (rps > 0.001) {
+      const framesPer3Rot = (360 * 3) / rps;
+      const rawAlpha = 1 - Math.pow(0.28, 6 / framesPer3Rot);
+      // clamp: min keeps alpha above rounding threshold; max prevents fast rotations from nuking trail too hard
+      const alpha = Math.max(0.007, Math.min(0.035, rawAlpha));
+      const bgRGB = parseHex(P.bg);
+      ctx.fillStyle = `rgba(${bgRGB[0]},${bgRGB[1]},${bgRGB[2]},${alpha})`;
+      ctx.fillRect(0, 0, W, H);
+    }
   }
 
   // ── stamp (offset center so visible panels don't block flower)
